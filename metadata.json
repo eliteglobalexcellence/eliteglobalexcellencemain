@@ -1,0 +1,6 @@
+{
+  "name": "Elite Global Excellence",
+  "description": "Elite Global Excellence (EGE) - Academic and research services, international conferences, workshops, courses, mock viva defense, and institutional collaboration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
