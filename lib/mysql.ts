@@ -4,22 +4,29 @@ import { initialDatabase } from './seedData';
 
 let pool: mysql.Pool | null = null;
 let tablesInitialized = false;
+let mysqlDisabledUntil = 0;
 
 export function isMysqlConfigured(): boolean {
-  return Boolean(
-    process.env.DATABASE_URL ||
-    process.env.MYSQL_HOST ||
-    process.env.DB_HOST ||
-    process.env.MYSQL_DATABASE ||
-    process.env.DB_NAME
+  if (Date.now() < mysqlDisabledUntil) return false;
+
+  const hasUrl = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim().length > 0);
+  const hasHost = Boolean(
+    (process.env.MYSQL_HOST && process.env.MYSQL_HOST.trim().length > 0) ||
+    (process.env.DB_HOST && process.env.DB_HOST.trim().length > 0)
   );
+
+  return hasUrl || hasHost;
+}
+
+export function disableMysqlTemporarily(): void {
+  mysqlDisabledUntil = Date.now() + 30000; // Disable for 30s on connection failure
 }
 
 export function getMysqlPool(): mysql.Pool {
   if (pool) return pool;
 
   const dbUrl = process.env.DATABASE_URL;
-  if (dbUrl) {
+  if (dbUrl && dbUrl.trim().length > 0) {
     pool = mysql.createPool(dbUrl);
     return pool;
   }
@@ -39,6 +46,7 @@ export function getMysqlPool(): mysql.Pool {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    connectTimeout: 3000,
   });
 
   return pool;
@@ -305,6 +313,7 @@ export async function initMysqlTables(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Failed to initialize MySQL tables:', error);
+    disableMysqlTemporarily();
     return false;
   }
 }
@@ -494,6 +503,7 @@ export async function fetchFullDatabaseFromMysql(): Promise<DatabaseState | null
     };
   } catch (error) {
     console.error('Failed to fetch full database from MySQL:', error);
+    disableMysqlTemporarily();
     return null;
   }
 }

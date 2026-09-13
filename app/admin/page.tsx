@@ -57,11 +57,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     refreshData();
-    // Check local storage session
-    const session = localStorage.getItem('ege_master_admin_auth');
-    if (session === 'true') {
-      setIsAuthenticated(true);
-    }
+    // Always require explicit authentication when navigating to /admin
+    setIsAuthenticated(false);
+    localStorage.removeItem('ege_master_admin_auth');
     setLoading(false);
 
     const handleSync = () => refreshData();

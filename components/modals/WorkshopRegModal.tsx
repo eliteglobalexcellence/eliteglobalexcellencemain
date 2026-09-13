@@ -70,25 +70,22 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
     try {
       const targetEmail = String(email || '').trim().toLowerCase();
 
-      // Fetch latest registrations with a 3-second timeout fallback
-      let allRegs: any[] = [];
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        const res = await fetch('/api/data?t=' + Date.now(), { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          const latestDb = await res.json();
-          if (Array.isArray(latestDb?.workshopRegistrations)) {
-            allRegs = latestDb.workshopRegistrations;
+      let allRegs: any[] = Array.isArray(data?.workshopRegistrations) ? data.workshopRegistrations : [];
+      if (!allRegs.length) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1000);
+          const res = await fetch('/api/data?t=' + Date.now(), { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const latestDb = await res.json();
+            if (Array.isArray(latestDb?.workshopRegistrations)) {
+              allRegs = latestDb.workshopRegistrations;
+            }
           }
+        } catch (fErr) {
+          console.warn('Fetch latest DB fallback:', fErr);
         }
-      } catch (fErr) {
-        console.warn('Fetch latest DB fallback or timeout:', fErr);
-      }
-
-      if (!allRegs.length && Array.isArray(data?.workshopRegistrations)) {
-        allRegs = data.workshopRegistrations;
       }
 
       const matchingRegs = allRegs.filter((r) => {
@@ -140,24 +137,32 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
         registeredAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       };
 
-      // 1. Save registration record to database (awaited)
-      try {
-        await fetch('/api/admin/crud', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'CREATE',
-            entity: 'workshopRegistrations',
-            payload: newRegistration,
-          }),
-        });
-      } catch (saveErr) {
-        console.warn('Reg save fallback warning:', saveErr);
-      }
+      // 1. INSTANT 1-CLICK confirmation screen transition
+      setConfirmedReg({
+        registrationId: generatedRegId,
+        fullName,
+        whatsappLink: workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026',
+        whatsappQrUrl: workshop?.whatsappQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026')}`,
+      });
 
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('ege_data_updated'));
-      }
+      if (onSuccess) onSuccess();
+
+      // 2. Save registration record to database asynchronously
+      fetch('/api/admin/crud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE',
+          entity: 'workshopRegistrations',
+          payload: newRegistration,
+        }),
+      })
+        .then(() => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('ege_data_updated'));
+          }
+        })
+        .catch((err) => console.warn('Reg save fallback warning:', err));
 
       // 2. Send Inbox Copy asynchronously
       fetch('/api/inbox', {
