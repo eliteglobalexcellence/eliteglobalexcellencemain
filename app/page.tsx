@@ -186,18 +186,16 @@ export default function App() {
     setJobApplyOpen(true);
   };
 
+  useEffect(() => {
+    if (currentTab === 'admin') {
+      window.location.href = '/admin';
+    }
+  }, [currentTab]);
+
   return (
     <div className="min-h-screen flex flex-col bg-white text-slate-900 selection:bg-[#045494] selection:text-white">
-      {/* If in admin view, render AdminView directly */}
-      {currentTab === 'admin' ? (
-        <AdminView
-          data={data}
-          onRefreshData={refreshData}
-          onExitAdmin={() => handleSelectTab('home')}
-        />
-      ) : (
-        <>
-          {/* Header */}
+      {/* Main Website View */}
+      {/* Header */}
           <Header
             currentTab={currentTab}
             subTab={currentSubTab}
@@ -329,8 +327,6 @@ export default function App() {
             contactSettings={data.contactSettings}
             siteContent={data.siteContent}
           />
-        </>
-      )}
 
       {/* Global Interactive Modals */}
       <QuotationModal

@@ -65,13 +65,18 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
       return;
     }
 
+    setLoading(true);
+
     try {
       const targetEmail = String(email || '').trim().toLowerCase();
 
-      // Fetch latest registrations from server database to ensure strict up-to-second uniqueness across all users
+      // Fetch latest registrations with a 3-second timeout fallback
       let allRegs: any[] = [];
       try {
-        const res = await fetch('/api/data?t=' + Date.now());
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('/api/data?t=' + Date.now(), { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const latestDb = await res.json();
           if (Array.isArray(latestDb?.workshopRegistrations)) {
@@ -79,7 +84,7 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
           }
         }
       } catch (fErr) {
-        console.warn('Fetch latest DB fallback:', fErr);
+        console.warn('Fetch latest DB fallback or timeout:', fErr);
       }
 
       if (!allRegs.length && Array.isArray(data?.workshopRegistrations)) {
@@ -98,6 +103,7 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
 
       if (isAlreadyRegistered) {
         setError(`The email "${email}" is already registered for this workshop (${targetWorkshopId}). Duplicate registrations are not allowed.`);
+        setLoading(false);
         return;
       }
 
@@ -134,34 +140,26 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
         registeredAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       };
 
-      // 1. INSTANTLY transition to registration confirmation screen
-      setConfirmedReg({
-        registrationId: generatedRegId,
-        fullName,
-        whatsappLink: workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026',
-        whatsappQrUrl: workshop?.whatsappQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026')}`,
-      });
+      // 1. Save registration record to database (awaited)
+      try {
+        await fetch('/api/admin/crud', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'CREATE',
+            entity: 'workshopRegistrations',
+            payload: newRegistration,
+          }),
+        });
+      } catch (saveErr) {
+        console.warn('Reg save fallback warning:', saveErr);
+      }
 
-      if (onSuccess) onSuccess();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ege_data_updated'));
+      }
 
-      // 2. Save registration record to database asynchronously
-      fetch('/api/admin/crud', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'CREATE',
-          entity: 'workshopRegistrations',
-          payload: newRegistration,
-        }),
-      })
-        .then(() => {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('ege_data_updated'));
-          }
-        })
-        .catch((err) => console.warn('Reg save fallback:', err));
-
-      // 3. Send Inbox Copy asynchronously
+      // 2. Send Inbox Copy asynchronously
       fetch('/api/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -177,23 +175,7 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
         }),
       }).catch((err) => console.warn('Inbox notify fallback:', err));
 
-      const clearForm = () => {
-        setEmail('');
-        setPhone('');
-        setFullName('');
-        setRole('Student');
-        setInstitution('');
-        setDepartment('');
-        setLevelOfStudy('Master');
-        setCountry('Malaysia');
-        setIsKeynoteSpeaker('No, I don’t have experience as a keynote speaker');
-        setError('');
-      };
-
-      // Clear input fields immediately after registration record creation
-      clearForm();
-
-      // 4. Send Automated Confirmation Email from eliteglobalexcellence@gmail.com asynchronously
+      // 3. Send Automated Confirmation Email asynchronously
       fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,9 +190,36 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
           whatsappLink: workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026',
         }),
       }).catch((err) => console.warn('Email notify fallback:', err));
+
+      // 4. Transition to confirmation screen
+      setConfirmedReg({
+        registrationId: generatedRegId,
+        fullName,
+        whatsappLink: workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026',
+        whatsappQrUrl: workshop?.whatsappQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(workshop?.whatsappLink || 'https://chat.whatsapp.com/EGEWorkshopAI2026')}`,
+      });
+
+      if (onSuccess) onSuccess();
+
+      const clearForm = () => {
+        setEmail('');
+        setPhone('');
+        setFullName('');
+        setRole('Student');
+        setInstitution('');
+        setDepartment('');
+        setLevelOfStudy('Master');
+        setCountry('Malaysia');
+        setIsKeynoteSpeaker('No, I don’t have experience as a keynote speaker');
+        setError('');
+      };
+
+      clearForm();
     } catch (err: any) {
       console.error('Registration exception:', err);
       setError('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -470,10 +479,20 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#045494] hover:bg-[#033b68] text-white px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow-md transition"
+                  disabled={loading}
+                  className="bg-[#045494] hover:bg-[#033b68] text-white px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow-md transition disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Submit Registration</span>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Submit Registration</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
