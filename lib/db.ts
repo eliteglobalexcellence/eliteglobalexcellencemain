@@ -32,6 +32,9 @@ function normalizeDatabase(db: any): DatabaseState {
   if (!db.workshopRegistrations) {
     db.workshopRegistrations = JSON.parse(JSON.stringify(initialDatabase.workshopRegistrations || []));
   }
+  if (!db.workshopAttendances) {
+    db.workshopAttendances = [];
+  }
   if (!db.siteContent) {
     db.siteContent = JSON.parse(JSON.stringify(initialDatabase.siteContent));
   } else {

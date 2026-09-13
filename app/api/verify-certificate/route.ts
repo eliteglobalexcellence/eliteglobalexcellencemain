@@ -18,7 +18,30 @@ export async function POST(req: NextRequest) {
         c.participantName.toLowerCase().includes(cleanQuery)
     );
 
-    // Fallback lookup against registered participants if newly issued
+    // Fallback lookup against registered participants or attendances if newly issued
+    if (!matched && db.workshopAttendances) {
+      const attMatch = db.workshopAttendances.find(
+        (a) =>
+          a.certIssued &&
+          ((a.certId && a.certId.toLowerCase() === cleanQuery) ||
+           a.fullName.toLowerCase().includes(cleanQuery))
+      );
+
+      if (attMatch) {
+        const ws = (db.workshops || []).find(
+          (w) => (w.workshopId || `EGEW${w.id}`).toUpperCase() === attMatch.workshopId.toUpperCase()
+        );
+        matched = {
+          id: attMatch.certId,
+          participantName: attMatch.fullName,
+          workshopTitle: ws ? ws.title : 'Elite Global Excellence Academic Masterclass',
+          issueDate: attMatch.submittedAt || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+          status: 'VALID',
+          institution: 'Elite Global Excellence Academic Council',
+        };
+      }
+    }
+
     if (!matched && db.workshopRegistrations) {
       const regMatch = db.workshopRegistrations.find(
         (r) =>

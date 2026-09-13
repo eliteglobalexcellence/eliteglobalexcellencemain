@@ -108,6 +108,19 @@ export interface WorkshopRegistration {
   registeredAt?: string;
 }
 
+export interface WorkshopAttendance {
+  id: string;
+  workshopId: string; // e.g. EGEW14
+  certId: string; // e.g. EGEW14-CERT01
+  fullName: string; // Full Name to be displayed on Certificate
+  email: string;
+  satisfied: string; // e.g. "Yes, Very Satisfied"
+  learned: string; // e.g. "Yes, Extremely Valuable"
+  feedback?: string; // Additional Feedback / Suggestions
+  submittedAt: string;
+  certIssued?: boolean;
+}
+
 export type WorkshopItem = Workshop;
 
 export interface Course {
@@ -895,6 +908,7 @@ export interface DatabaseState {
   partners: Partner[];
   workshops: Workshop[];
   workshopRegistrations?: WorkshopRegistration[];
+  workshopAttendances?: WorkshopAttendance[];
   courses: Course[];
   researchMembers: ResearchMember[];
   careers: CareerRole[];

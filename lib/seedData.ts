@@ -1704,6 +1704,8 @@ Prof. Dr. Nuno M. Garcia of the University of Lisbon expressed enthusiasm: "Inte
       institution: 'Elite Global Excellence Academic Council',
     },
   ],
+
+  workshopAttendances: [],
 };
 
 export const initialDatabaseState = initialDatabase;

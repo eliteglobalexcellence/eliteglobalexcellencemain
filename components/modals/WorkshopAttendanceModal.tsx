@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Award, CheckCircle2, AlertCircle, Send, FileCheck } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import { DatabaseState, Workshop } from '@/lib/types';
-import { CertificateDocument } from '@/components/common/CertificateDocument';
 
 interface WorkshopAttendanceModalProps {
   isOpen: boolean;
@@ -20,14 +19,15 @@ export const WorkshopAttendanceModal: React.FC<WorkshopAttendanceModalProps> = (
   data,
   onSuccess,
 }) => {
-  const [registrationId, setRegistrationId] = useState('');
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [satisfaction, setSatisfaction] = useState('Yes, Very Satisfied');
   const [learnedSomething, setLearnedSomething] = useState('Yes, Extremely Valuable');
   const [comments, setComments] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [submittedCert, setSubmittedCert] = useState<{ certId: string; registrationId: string; name: string } | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   if (!isOpen) return null;
 
@@ -59,80 +59,85 @@ export const WorkshopAttendanceModal: React.FC<WorkshopAttendanceModalProps> = (
       return;
     }
 
-    const trimmedId = registrationId.trim().toUpperCase();
-    if (!trimmedId) {
-      setErrorMsg('Please enter your valid Registration ID (e.g. EGEW15-001) or Email Address.');
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedName = fullName.trim();
+
+    if (!trimmedEmail || !trimmedName) {
+      setErrorMsg('Please fill in all required fields marked with *.');
       return;
     }
 
     setSubmitting(true);
 
     try {
-      // Find matching registration in data by Registration ID or Email
-      const allRegs = data.workshopRegistrations || [];
-      const match = allRegs.find(
-        (r) => r.registrationId.toUpperCase() === trimmedId || r.email.trim().toUpperCase() === trimmedId
+      // Calculate next Certificate ID for this workshop (e.g. EGEW14-CERT01)
+      const existingAtts = (data?.workshopAttendances || []).filter(
+        (a) => String(a.workshopId || '').toUpperCase() === targetWorkshopId.toUpperCase()
+      );
+      let maxNumber = 0;
+      existingAtts.forEach((a) => {
+        const match = String(a.certId || '').match(/-CERT(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNumber) maxNumber = num;
+        }
+      });
+      const generatedCertId = `${targetWorkshopId}-CERT${String(maxNumber + 1).padStart(2, '0')}`;
+
+      const newAttendance = {
+        id: `att-${Date.now()}`,
+        workshopId: targetWorkshopId,
+        certId: generatedCertId,
+        fullName: trimmedName,
+        email: trimmedEmail,
+        satisfied: satisfaction,
+        learned: learnedSomething,
+        feedback: comments.trim(),
+        submittedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        certIssued: false,
+      };
+
+      // 1. Save attendance entry to server database
+      await fetch('/api/admin/crud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE',
+          entity: 'workshopAttendances',
+          payload: newAttendance,
+        }),
+      }).catch((err) => console.warn('Attendance save fallback:', err));
+
+      // 2. Optional: Mark matching registration as attended in database
+      const matchingReg = (data?.workshopRegistrations || []).find(
+        (r) => String(r.email).trim().toLowerCase() === trimmedEmail &&
+               (r.workshopId.toUpperCase() === targetWorkshopId.toUpperCase())
       );
 
-      let participantName = match ? match.fullName : 'Workshop Participant';
-
-      // Calculate Cert ID
-      const certCount = (data.certificates || []).filter((c) => c.id.startsWith(targetWorkshopId)).length + 1;
-      const generatedCertId = `${targetWorkshopId}-CERT${String(certCount).padStart(2, '0')}`;
-
-      // 1. Await saving attendance state to server database
-      if (match) {
-        await fetch('/api/admin/crud', {
+      if (matchingReg) {
+        fetch('/api/admin/crud', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'UPDATE',
             entity: 'workshopRegistrations',
             payload: {
-              id: match.id,
+              id: matchingReg.id,
               attended: true,
               certId: generatedCertId,
             },
           }),
-        }).catch((err) => console.warn('Attendance update fallback:', err));
+        }).catch((err) => console.warn('Reg update fallback:', err));
       }
 
-      // 2. Await adding verified certificate record to database
-      const newCert = {
-        id: generatedCertId,
-        participantName: participantName,
-        workshopTitle: activeWorkshop.title,
-        issueDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
-        status: 'VALID',
-        institution: 'Elite Global Excellence Academic Council',
-      };
-
-      await fetch('/api/admin/crud', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'CREATE',
-          entity: 'certificates',
-          payload: newCert,
-        }),
-      }).catch((err) => console.warn('Cert create fallback:', err));
-
-      setSubmittedCert({
-        certId: generatedCertId,
-        registrationId: match ? match.registrationId : trimmedId,
-        name: participantName,
-      });
+      setSubmitted(true);
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('ege_data_updated'));
       }
       onSuccess();
-
-      // 3. Directly navigate user to official Certificate Page
-      if (typeof window !== 'undefined') {
-        window.location.href = `/certificate?id=${encodeURIComponent(generatedCertId)}`;
-      }
     } catch (err: any) {
+      console.error('Attendance submit error:', err);
       setErrorMsg('Failed to record attendance. Please try again.');
     } finally {
       setSubmitting(false);
@@ -140,23 +145,29 @@ export const WorkshopAttendanceModal: React.FC<WorkshopAttendanceModalProps> = (
   };
 
   const resetForm = () => {
-    setRegistrationId('');
+    const wasSubmitted = submitted;
+    setEmail('');
+    setFullName('');
     setSatisfaction('Yes, Very Satisfied');
     setLearnedSomething('Yes, Extremely Valuable');
     setComments('');
     setErrorMsg('');
-    setSubmittedCert(null);
+    setSubmitted(false);
     onClose();
+    if (wasSubmitted && typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in overflow-y-auto">
-      <div className={`bg-white w-full ${submittedCert ? 'max-w-4xl' : 'max-w-lg'} rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative my-auto max-h-[92vh] flex flex-col`}>
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="bg-[#045494] text-white p-6 relative shrink-0">
           <button
             onClick={resetForm}
             className="absolute top-5 right-5 text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -170,67 +181,30 @@ export const WorkshopAttendanceModal: React.FC<WorkshopAttendanceModalProps> = (
           </div>
           <h2 className="text-xl font-extrabold leading-tight">Workshop Attendance & Verification</h2>
           <p className="text-xs text-blue-100 mt-1">
-            Please fill out the feedback form to mark your attendance and receive your digital certificate.
+            Please fill out the feedback form to mark your attendance to receive your digital certificate.
           </p>
         </div>
 
         {/* Content */}
         <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1">
-          {submittedCert ? (
+          {submitted ? (
             /* Success Screen */
-            <div className="text-center space-y-6 animate-in zoom-in-95">
+            <div className="text-center space-y-6 animate-in zoom-in-95 py-4">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Attendance Recorded Successfully!</h3>
-                <p className="text-xs text-slate-600 mt-1">
-                  Thank you, <strong className="text-slate-900">{submittedCert.name}</strong>. Your attendance has been confirmed for <strong>{activeWorkshop.title}</strong>.
+              <div className="space-y-2">
+                <h3 className="text-lg font-extrabold text-slate-900">Attendance Submitted Successfully!</h3>
+                <p className="text-xs text-slate-700 max-w-md mx-auto leading-relaxed font-medium">
+                  Thanks for attending workshop on <strong>{activeWorkshop.title}</strong>, you will receive your certificate within a week.
                 </p>
-              </div>
-
-              {/* Certificate Box */}
-              <div className="bg-blue-50/80 border-2 border-blue-200 rounded-2xl p-5 text-center space-y-3">
-                <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#045494] uppercase tracking-wider">
-                  <Award className="w-4 h-4 text-amber-500" />
-                  <span>Issued Certificate Serial ID</span>
-                </div>
-                <div className="text-xl font-black text-[#045494] font-mono tracking-widest bg-white py-2 px-4 rounded-xl border border-blue-200 shadow-xs inline-block">
-                  {submittedCert.certId}
-                </div>
-                <p className="text-[11px] text-slate-600 font-medium">
-                  Your certificate has been generated and opened in a new tab. If your browser blocked popups, click the button below to download your certificate:
-                </p>
-
-                <a
-                  href={`/certificate?id=${encodeURIComponent(submittedCert.certId)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer mt-2"
-                >
-                  <FileCheck className="w-4 h-4" />
-                  <span>Download Certificate in New Tab</span>
-                </a>
-              </div>
-
-              {/* LIVE CERTIFICATE PREVIEW */}
-              <div className="pt-2">
-                <CertificateDocument
-                  data={{
-                    certId: submittedCert.certId,
-                    participantName: submittedCert.name,
-                    workshopTitle: activeWorkshop.title,
-                    issueDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
-                  }}
-                  showActions={true}
-                />
               </div>
 
               <button
                 onClick={resetForm}
                 className="w-full bg-[#045494] hover:bg-[#033b68] text-white font-bold text-xs py-3 rounded-xl shadow-md transition cursor-pointer"
               >
-                Close Window
+                Close
               </button>
             </div>
           ) : (
@@ -255,19 +229,30 @@ export const WorkshopAttendanceModal: React.FC<WorkshopAttendanceModalProps> = (
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Registration ID <span className="text-rose-500">*</span>
+                  Email <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. participant@example.com"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-[#045494] focus:ring-2 focus:ring-blue-100 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Full Name to be displayed on Certificate <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  value={registrationId}
-                  onChange={(e) => setRegistrationId(e.target.value)}
-                  placeholder="e.g. EGEW15-001 or EGEWS05-021"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-[#045494] focus:ring-2 focus:ring-blue-100 rounded-xl text-xs font-mono font-bold text-slate-900 placeholder:text-slate-400 uppercase"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="e.g. Dr. Sajid Shah"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-[#045494] focus:ring-2 focus:ring-blue-100 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  You can find this ID in the confirmation email sent to you upon registration.
-                </p>
               </div>
 
               <div className="pt-2 border-t border-slate-100 space-y-3">

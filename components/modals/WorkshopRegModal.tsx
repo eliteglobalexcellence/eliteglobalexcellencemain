@@ -261,19 +261,6 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
               </div>
             </div>
 
-            {/* YOUR REGISTRATION ID HIGHLIGHT BOX */}
-            <div className="bg-blue-50 border-2 border-dashed border-[#045494] rounded-2xl p-5 text-center space-y-2 shadow-xs">
-              <span className="text-[11px] font-black uppercase tracking-widest text-[#045494] block">
-                YOUR REGISTRATION ID
-              </span>
-              <span className="text-2xl font-black text-[#045494] tracking-widest font-mono bg-white px-4 py-2 rounded-xl border border-blue-200 shadow-xs inline-block">
-                {confirmedReg.registrationId}
-              </span>
-              <p className="text-[11px] text-blue-900 font-semibold leading-relaxed pt-1">
-                <strong>Important:</strong> Please keep this Registration ID handy. You will need to provide it to verify your attendance and claim your certificate after the workshop concludes.
-              </p>
-            </div>
-
             {/* WHATSAPP GROUP & QR CODE */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-4">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center justify-center gap-1.5">

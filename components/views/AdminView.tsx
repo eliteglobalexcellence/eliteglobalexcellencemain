@@ -43,7 +43,8 @@ import {
   Globe2,
   Mail,
   Layout,
-  Bell
+  Bell,
+  Award
 } from 'lucide-react';
 import {
   DatabaseState,
@@ -330,9 +331,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [editingServiceModal, setEditingServiceModal] = useState<ServiceItem | null>(null);
 
   // Workshop Management States
-  const [workshopManagementTab, setWorkshopManagementTab] = useState<'content' | 'upcoming' | 'past'>('upcoming');
+  const [workshopManagementTab, setWorkshopManagementTab] = useState<'content' | 'upcoming' | 'past' | 'attendance'>('upcoming');
   const [editingWorkshopModal, setEditingWorkshopModal] = useState<Workshop | null>(null);
   const [viewingRegistrationsModal, setViewingRegistrationsModal] = useState<Workshop | null>(null);
+  const [viewingAttendancesModal, setViewingAttendancesModal] = useState<Workshop | null>(null);
   const [editingParticipantModal, setEditingParticipantModal] = useState<WorkshopRegistration | null>(null);
   const [viewingParticipantModal, setViewingParticipantModal] = useState<WorkshopRegistration | null>(null);
 
@@ -451,6 +453,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           data.inboxMessages = (data.inboxMessages || []).filter((m) => String(m.id) !== String(payload.id));
           data.inbox = data.inboxMessages;
         } else if (entity === 'workshopRegistrations') data.workshopRegistrations = (data.workshopRegistrations || []).filter((r) => String(r.id) !== String(payload.id));
+        else if (entity === 'workshopAttendances') data.workshopAttendances = (data.workshopAttendances || []).filter((a) => String(a.id) !== String(payload.id));
         else if (entity === 'testimonials') {
           if (data.siteContent) {
             data.siteContent.testimonials = (data.siteContent.testimonials || []).filter((t: any) => String(t.id) !== String(payload.id));
@@ -472,6 +475,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           data.inboxMessages = (data.inboxMessages || []).map((m) => String(m.id) === String(payload.id) ? { ...m, ...payload } : m);
           data.inbox = data.inboxMessages;
         } else if (entity === 'workshopRegistrations') data.workshopRegistrations = (data.workshopRegistrations || []).map((r) => String(r.id) === String(payload.id) ? { ...r, ...payload } : r);
+        else if (entity === 'workshopAttendances') data.workshopAttendances = (data.workshopAttendances || []).map((a) => String(a.id) === String(payload.id) ? { ...a, ...payload } : a);
         else if (entity === 'testimonials') {
           if (data.siteContent) {
             data.siteContent.testimonials = (data.siteContent.testimonials || []).map((t: any) => String(t.id) === String(payload.id) ? { ...t, ...payload } : t);
@@ -493,7 +497,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
         } else if (entity === 'inbox' || entity === 'inboxMessages') {
           data.inboxMessages = [createdItem, ...(data.inboxMessages || [])];
           data.inbox = data.inboxMessages;
-        }
+        } else if (entity === 'workshopRegistrations') data.workshopRegistrations = [createdItem, ...(data.workshopRegistrations || [])];
+        else if (entity === 'workshopAttendances') data.workshopAttendances = [createdItem, ...(data.workshopAttendances || [])];
       }
     } catch (e) {
       console.warn('Optimistic state update warning:', e);
@@ -3571,6 +3576,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                   const upcomingCount = (data.workshops || []).filter(w => !isPastWs(w)).length;
                   const pastCount = (data.workshops || []).filter(w => isPastWs(w)).length;
+                  const totalAttendances = (data.workshopAttendances || []).length;
 
                   return (
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
@@ -3578,6 +3584,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                         { id: 'content', label: '1. Workshop Interface Content' },
                         { id: 'upcoming', label: `2. Upcoming Workshops (${upcomingCount})` },
                         { id: 'past', label: `3. Past Archive (${pastCount})` },
+                        { id: 'attendance', label: `4. Attendance (${totalAttendances})` },
                       ].map((tab) => (
                         <button
                           key={tab.id}
@@ -4141,6 +4148,74 @@ export const AdminView: React.FC<AdminViewProps> = ({
                               );
                             });
                           })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: ATTENDANCE MANAGER */}
+                {workshopManagementTab === 'attendance' && (
+                  <div className="space-y-6 animate-in fade-in">
+                    <div className="bg-blue-50/60 border border-blue-200/80 p-4 rounded-2xl">
+                      <div className="text-xs font-bold text-[#045494] uppercase tracking-wider">Workshop Attendance Submissions</div>
+                      <p className="text-[11px] text-slate-600 font-medium">View and manage attendance form feedback submissions for each workshop.</p>
+                    </div>
+
+                    <div className="overflow-x-auto border border-slate-200 rounded-2xl bg-white shadow-2xs">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px]">
+                            <th className="py-3 px-4">Workshop ID</th>
+                            <th className="py-3 px-4">Title</th>
+                            <th className="py-3 px-4">Date & Time</th>
+                            <th className="py-3 px-4">Fee</th>
+                            <th className="py-3 px-4">Mode</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(data.workshops || []).map((ws) => {
+                            const wsId = ws.workshopId || `EGEW${ws.id}`;
+                            const attList = (data.workshopAttendances || []).filter(a => a.workshopId.toUpperCase() === wsId.toUpperCase());
+                            const isAttendanceOpen = ws.attendanceOpen !== false;
+
+                            return (
+                              <tr key={ws.id} className="hover:bg-slate-50/80 transition">
+                                <td className="py-3 px-4 font-mono font-bold text-[#045494]">
+                                  {wsId}
+                                </td>
+                                <td className="py-3 px-4 font-bold text-slate-900">
+                                  {ws.title}
+                                </td>
+                                <td className="py-3 px-4 text-slate-600">
+                                  <div>{ws.date || 'TBD'}</div>
+                                  <div className="text-[10px] text-slate-400">{ws.time || 'TBD'}</div>
+                                </td>
+                                <td className="py-3 px-4 font-bold text-emerald-700">
+                                  {ws.fee || 'Free'}
+                                </td>
+                                <td className="py-3 px-4 text-slate-600">
+                                  {ws.mode || 'TBD'}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isAttendanceOpen ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                    {isAttendanceOpen ? 'OPEN' : 'CLOSED'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-right whitespace-nowrap">
+                                  <button
+                                    onClick={() => setViewingAttendancesModal(ws)}
+                                    className="bg-[#045494] hover:bg-[#033b68] text-white px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+                                  >
+                                    <Users className="w-3.5 h-3.5" />
+                                    <span>Attendances ({attList.length})</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -9516,11 +9591,71 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
               {/* PARTICIPANTS TABLE */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <h4 className="font-bold text-slate-800 uppercase tracking-wider">Registered Participants</h4>
-                  <span className="font-semibold text-slate-500">
-                    Total: {(data.workshopRegistrations || []).filter(r => r.workshopId.toUpperCase() === (viewingRegistrationsModal.workshopId || `EGEW${viewingRegistrationsModal.id}`).toUpperCase()).length}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetId = (viewingRegistrationsModal.workshopId || `EGEW${viewingRegistrationsModal.id}`).toUpperCase();
+                        const list = (data.workshopRegistrations || []).filter(r => r.workshopId.toUpperCase() === targetId);
+                        const headers = ['User ID / Reg ID', 'Full Name', 'Email', 'Phone', 'Role', 'Institute', 'Department', 'Level of Study', 'Country', 'Keynote Speaker', 'Attended', 'Certificate ID', 'Registered At'];
+                        const rows = list.map(r => [
+                          r.registrationId,
+                          r.fullName,
+                          r.email,
+                          r.phone || '',
+                          r.role || '',
+                          r.institute || '',
+                          r.department || '',
+                          r.levelOfStudy || '',
+                          r.country || '',
+                          r.isKeynoteSpeaker || '',
+                          r.attended ? 'Yes' : 'No',
+                          r.certId || '',
+                          r.registeredAt || ''
+                        ]);
+                        const csvContent = [
+                          headers.join(','),
+                          ...rows.map(row => row.map(val => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
+                        ].join('\n');
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', `${targetId}_Registrations.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        showFeedback('✓ Downloaded Excel/CSV Registration file!');
+                      }}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+                    >
+                      <Upload className="w-3.5 h-3.5 rotate-180" />
+                      <span>Download Excel / CSV</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetId = (viewingRegistrationsModal.workshopId || `EGEW${viewingRegistrationsModal.id}`).toUpperCase();
+                        const list = (data.workshopRegistrations || []).filter(r => r.workshopId.toUpperCase() === targetId);
+                        const commaSeparated = list.map(r => `${r.registrationId}, ${r.fullName}, ${r.email}, ${r.role}, ${r.institute}, ${r.country}`).join('\n');
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(commaSeparated);
+                          showFeedback('✓ Registrations data copied with comma separation!');
+                        }
+                      }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-2xs transition"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-[#045494]" />
+                      <span>Copy Comma-Separated</span>
+                    </button>
+
+                    <span className="font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      Total: {(data.workshopRegistrations || []).filter(r => r.workshopId.toUpperCase() === (viewingRegistrationsModal.workshopId || `EGEW${viewingRegistrationsModal.id}`).toUpperCase()).length}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto border border-slate-200 rounded-2xl bg-white text-xs">
@@ -9608,6 +9743,216 @@ export const AdminView: React.FC<AdminViewProps> = ({
                             </td>
                           </tr>
                         ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEWING ATTENDANCES MODAL */}
+        {viewingAttendancesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
+            <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative max-h-[90vh] overflow-y-auto space-y-6 animate-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-[#045494] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
+                      {viewingAttendancesModal.workshopId || `EGEW${viewingAttendancesModal.id}`}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Attendance Submissions: {viewingAttendancesModal.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">List of all attendance feedback submissions for this workshop.</p>
+                </div>
+                <button onClick={() => setViewingAttendancesModal(null)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* ATTENDANCES TABLE */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <h4 className="font-bold text-slate-800 uppercase tracking-wider">Submitted Attendances</h4>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetId = (viewingAttendancesModal.workshopId || `EGEW${viewingAttendancesModal.id}`).toUpperCase();
+                        const list = (data.workshopAttendances || []).filter(a => a.workshopId.toUpperCase() === targetId);
+                        const headers = ['Full Name (Certificate)', 'Email', 'Certificate ID', 'Submitted Date', 'Satisfaction', 'Learning Value', 'Additional Feedback', 'Certificate Issued'];
+                        const rows = list.map(a => [
+                          a.fullName,
+                          a.email,
+                          a.certId || '',
+                          a.submittedAt || '',
+                          a.satisfied || '',
+                          a.learned || '',
+                          a.feedback || '',
+                          a.certIssued ? 'Yes (Issued)' : 'No (Pending)'
+                        ]);
+                        const csvContent = [
+                          headers.join(','),
+                          ...rows.map(row => row.map(val => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
+                        ].join('\n');
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', `${targetId}_Attendances.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        showFeedback('✓ Downloaded Excel/CSV Attendance file!');
+                      }}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+                    >
+                      <Upload className="w-3.5 h-3.5 rotate-180" />
+                      <span>Download Excel / CSV</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetId = (viewingAttendancesModal.workshopId || `EGEW${viewingAttendancesModal.id}`).toUpperCase();
+                        const list = (data.workshopAttendances || []).filter(a => a.workshopId.toUpperCase() === targetId);
+                        const commaSeparated = list.map(a => `${a.fullName}, ${a.email}, ${a.certId || 'N/A'}, ${a.submittedAt || ''}, ${a.satisfied}, ${a.learned}`).join('\n');
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(commaSeparated);
+                          showFeedback('✓ Attendances data copied with comma separation!');
+                        }
+                      }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-2xs transition"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-[#045494]" />
+                      <span>Copy Comma-Separated</span>
+                    </button>
+
+                    <span className="font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      Total: {(data.workshopAttendances || []).filter(a => a.workshopId.toUpperCase() === (viewingAttendancesModal.workshopId || `EGEW${viewingAttendancesModal.id}`).toUpperCase()).length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-2xl bg-white text-xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px]">
+                        <th className="py-3 px-4">Full Name (Certificate)</th>
+                        <th className="py-3 px-4">Email</th>
+                        <th className="py-3 px-4">Cert ID</th>
+                        <th className="py-3 px-4">Submitted Date</th>
+                        <th className="py-3 px-4">Satisfaction</th>
+                        <th className="py-3 px-4">Learning Value</th>
+                        <th className="py-3 px-4">Additional Feedback</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(() => {
+                        const targetId = (viewingAttendancesModal.workshopId || `EGEW${viewingAttendancesModal.id}`).toUpperCase();
+                        const list = (data.workshopAttendances || []).filter(a => a.workshopId.toUpperCase() === targetId);
+
+                        if (list.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={9} className="py-8 text-center text-slate-500">
+                                No attendance submissions recorded for this workshop yet.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return list.map((att) => {
+                          const isIssued = Boolean(att.certIssued);
+
+                          return (
+                            <tr key={att.id} className="hover:bg-slate-50/80 transition">
+                              <td className="py-3 px-4 font-bold text-slate-900">
+                                {att.fullName}
+                              </td>
+                              <td className="py-3 px-4 text-slate-600 font-medium">
+                                {att.email}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-[#045494]">
+                                {att.certId || '—'}
+                              </td>
+                              <td className="py-3 px-4 text-slate-500 text-[11px]">
+                                {att.submittedAt || '—'}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="bg-blue-50 text-[#045494] font-semibold px-2 py-0.5 rounded text-[11px] border border-blue-100">
+                                  {att.satisfied}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded text-[11px] border border-emerald-100">
+                                  {att.learned}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-600 max-w-xs truncate" title={att.feedback}>
+                                {att.feedback || <span className="text-slate-400 font-normal">—</span>}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isIssued ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                                  {isIssued ? '✓ ISSUED' : '● PENDING'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
+                                {!isIssued ? (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const targetCertId = att.certId || `${targetId}-CERT01`;
+                                      // 1. Create certificate in registry
+                                      await handleAdminCrud('CREATE', 'certificates', {
+                                        id: targetCertId,
+                                        participantName: att.fullName,
+                                        workshopTitle: viewingAttendancesModal.title,
+                                        issueDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+                                        status: 'VALID',
+                                        institution: 'Elite Global Excellence Academic Council',
+                                      });
+                                      // 2. Mark certIssued = true on attendance record
+                                      await handleAdminCrud('UPDATE', 'workshopAttendances', {
+                                        id: att.id,
+                                        certIssued: true,
+                                      });
+                                      showFeedback(`✓ Certificate ${targetCertId} issued for ${att.fullName} and added to public verification registry!`);
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer transition shadow-xs"
+                                    title="Issue certificate and make it publicly verifiable"
+                                  >
+                                    <Award className="w-3.5 h-3.5" />
+                                    <span>Issue Certificate</span>
+                                  </button>
+                                ) : (
+                                  <a
+                                    href={`/certificate?id=${encodeURIComponent(att.certId)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="bg-blue-50 text-[#045494] hover:bg-blue-100 font-bold text-xs px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer transition border border-blue-200"
+                                    title="View verified credential link"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span>Verify Record</span>
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => handleAdminCrud('DELETE', 'workshopAttendances', { id: att.id })}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer inline-block"
+                                  title="Delete Attendance Record"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        });
                       })()}
                     </tbody>
                   </table>

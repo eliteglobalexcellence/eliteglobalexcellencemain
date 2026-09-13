@@ -6,16 +6,18 @@ export async function POST(req: NextRequest) {
   try {
     const adminSecret = process.env.ADMIN_SECRET || 'EGE2026!Admin';
     const reqSecret = req.headers.get('x-admin-secret') || req.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (reqSecret !== adminSecret) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid Admin Secret key.' }, { status: 401 });
-    }
 
     const body = await req.json();
     const action = String(body.action || '').toLowerCase();
     const collection = String(body.collection || body.entity || '');
     const item = body.item || body.payload || {};
     const id = body.id || item?.id;
+
+    const isPublicAction = ['workshopRegistrations', 'workshopAttendances', 'inboxMessages', 'testimonials'].includes(collection) && action === 'create';
+    
+    if (!isPublicAction && reqSecret !== adminSecret) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid Admin Secret key.' }, { status: 401 });
+    }
 
     const db = getDatabase();
 
