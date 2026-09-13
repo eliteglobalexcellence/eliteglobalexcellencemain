@@ -399,6 +399,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const notifyDataChanged = () => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('ege_data_last_saved', Date.now().toString());
+      try {
+        window.localStorage.setItem('ege_cached_database', JSON.stringify(data));
+      } catch (e) {}
       window.dispatchEvent(new Event('ege_data_updated'));
       try {
         const bc = new BroadcastChannel('ege_admin_sync');
@@ -448,54 +451,56 @@ export const AdminView: React.FC<AdminViewProps> = ({
           if (data.siteContent) {
             data.siteContent.testimonials = (data.siteContent.testimonials || []).filter((t: any) => String(t.id) !== String(payload.id));
           }
-          (data as any).testimonials = data.siteContent?.testimonials || [];
-        }
-      } else if (action === 'UPDATE') {
-        if (entity === 'workshops') data.workshops = (data.workshops || []).map((w) => String(w.id) === String(payload.id) ? { ...w, ...payload } : w);
-        else if (entity === 'events') data.events = (data.events || []).map((e) => String(e.id) === String(payload.id) ? { ...e, ...payload } : e);
-        else if (entity === 'newsArticles' || entity === 'news') data.newsArticles = (data.newsArticles || []).map((n) => String(n.id) === String(payload.id) ? { ...n, ...payload } : n);
-        else if (entity === 'ambassadors') data.ambassadors = (data.ambassadors || []).map((a) => String(a.id) === String(payload.id) ? { ...a, ...payload } : a);
-        else if (entity === 'courses') data.courses = (data.courses || []).map((c) => String(c.id) === String(payload.id) ? { ...c, ...payload } : c);
-        else if (entity === 'researchMembers') data.researchMembers = (data.researchMembers || []).map((r) => String(r.id) === String(payload.id) ? { ...r, ...payload } : r);
-        else if (entity === 'partners') data.partners = (data.partners || []).map((p) => String(p.id) === String(payload.id) ? { ...p, ...payload } : p);
-        else if (entity === 'careerRoles' || entity === 'careers') {
-          data.careerRoles = (data.careerRoles || []).map((cr) => String(cr.id) === String(payload.id) ? { ...cr, ...payload } : cr);
-          data.careers = data.careerRoles;
-        } else if (entity === 'inbox' || entity === 'inboxMessages') {
-          data.inboxMessages = (data.inboxMessages || []).map((m) => String(m.id) === String(payload.id) ? { ...m, ...payload } : m);
-          data.inbox = data.inboxMessages;
-        } else if (entity === 'workshopRegistrations') data.workshopRegistrations = (data.workshopRegistrations || []).map((r) => String(r.id) === String(payload.id) ? { ...r, ...payload } : r);
-        else if (entity === 'workshopAttendances') data.workshopAttendances = (data.workshopAttendances || []).map((a) => String(a.id) === String(payload.id) ? { ...a, ...payload } : a);
-        else if (entity === 'testimonials') {
-          if (data.siteContent) {
-            data.siteContent.testimonials = (data.siteContent.testimonials || []).map((t: any) => String(t.id) === String(payload.id) ? { ...t, ...payload } : t);
-          }
-          (data as any).testimonials = data.siteContent?.testimonials || [];
         }
       } else if (action === 'CREATE') {
-        const createdItem = { ...payload, id: payload.id || Date.now() };
-        if (entity === 'workshops') data.workshops = [createdItem, ...(data.workshops || [])];
-        else if (entity === 'events') data.events = [createdItem, ...(data.events || [])];
-        else if (entity === 'newsArticles' || entity === 'news') data.newsArticles = [createdItem, ...(data.newsArticles || [])];
-        else if (entity === 'ambassadors') data.ambassadors = [...(data.ambassadors || []), createdItem];
-        else if (entity === 'courses') data.courses = [...(data.courses || []), createdItem];
-        else if (entity === 'researchMembers') data.researchMembers = [...(data.researchMembers || []), createdItem];
-        else if (entity === 'partners') data.partners = [...(data.partners || []), createdItem];
+        const newItem = { ...payload, id: payload.id || Date.now() };
+        if (entity === 'workshops') data.workshops = [newItem, ...(data.workshops || [])];
+        else if (entity === 'events') data.events = [newItem, ...(data.events || [])];
+        else if (entity === 'newsArticles' || entity === 'news') data.newsArticles = [newItem, ...(data.newsArticles || [])];
+        else if (entity === 'ambassadors') data.ambassadors = [newItem, ...(data.ambassadors || [])];
+        else if (entity === 'courses') data.courses = [newItem, ...(data.courses || [])];
+        else if (entity === 'researchMembers') data.researchMembers = [newItem, ...(data.researchMembers || [])];
+        else if (entity === 'partners') data.partners = [newItem, ...(data.partners || [])];
         else if (entity === 'careerRoles' || entity === 'careers') {
-          data.careerRoles = [...(data.careerRoles || []), createdItem];
+          data.careerRoles = [newItem, ...(data.careerRoles || [])];
           data.careers = data.careerRoles;
         } else if (entity === 'inbox' || entity === 'inboxMessages') {
-          data.inboxMessages = [createdItem, ...(data.inboxMessages || [])];
+          data.inboxMessages = [newItem, ...(data.inboxMessages || [])];
           data.inbox = data.inboxMessages;
-        } else if (entity === 'workshopRegistrations') data.workshopRegistrations = [createdItem, ...(data.workshopRegistrations || [])];
-        else if (entity === 'workshopAttendances') data.workshopAttendances = [createdItem, ...(data.workshopAttendances || [])];
+        }
+      } else if (action === 'UPDATE') {
+        const updateList = (arr?: any[]) =>
+          (arr || []).map((item) => (String(item.id) === String(payload.id) ? { ...item, ...payload } : item));
+
+        if (entity === 'workshops') data.workshops = updateList(data.workshops);
+        else if (entity === 'events') data.events = updateList(data.events);
+        else if (entity === 'newsArticles' || entity === 'news') data.newsArticles = updateList(data.newsArticles);
+        else if (entity === 'ambassadors') data.ambassadors = updateList(data.ambassadors);
+        else if (entity === 'courses') data.courses = updateList(data.courses);
+        else if (entity === 'researchMembers') data.researchMembers = updateList(data.researchMembers);
+        else if (entity === 'partners') data.partners = updateList(data.partners);
+        else if (entity === 'careerRoles' || entity === 'careers') {
+          data.careerRoles = updateList(data.careerRoles);
+          data.careers = data.careerRoles;
+        } else if (entity === 'inbox' || entity === 'inboxMessages') {
+          data.inboxMessages = updateList(data.inboxMessages);
+          data.inbox = data.inboxMessages;
+        } else if (entity === 'workshopRegistrations') data.workshopRegistrations = updateList(data.workshopRegistrations);
+        else if (entity === 'workshopAttendances') data.workshopAttendances = updateList(data.workshopAttendances);
+        else if (entity === 'testimonials') {
+          if (data.siteContent) {
+            data.siteContent.testimonials = updateList(data.siteContent.testimonials);
+          }
+        }
       }
     } catch (e) {
-      console.warn('Optimistic state update warning:', e);
+      console.error('Optimistic state update error:', e);
     }
 
-    // 2. INSTANT UI FEEDBACK & EVENT DISPATCH
+    // 2. NOTIFY ALL LISTENERS INSTANTLY
     notifyDataChanged();
+
+    // Close any open modals
     setEditingItem(null);
     setEditingWorkshopModal(null);
     setEditingCourseModal(null);
@@ -515,7 +520,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       fetch('/api/admin/crud', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_SECRET || 'EGE2026!Admin',
+        },
         body: JSON.stringify({ action, entity, payload }),
       }).then(async (res) => {
         if (res.ok) {
@@ -544,7 +552,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       const res = await fetch('/api/admin/crud', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_SECRET || 'EGE2026!Admin',
+        },
         body: JSON.stringify({
           action: 'UPDATE',
           entity: 'siteContent',
@@ -554,6 +565,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (res.ok) {
         if (onRefreshData) onRefreshData();
         notifyDataChanged();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showFeedback(undefined, errData.error || 'Server error saving site content.');
       }
     } catch (err) {
       console.error('Network error saving site content:', err);
@@ -571,15 +585,21 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       fetch('/api/admin/crud', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_SECRET || 'EGE2026!Admin',
+        },
         body: JSON.stringify({
           action: 'UPDATE',
           entity: 'siteContent',
           payload: updatedSiteContent,
         }),
-      }).then((res) => {
+      }).then(async (res) => {
         if (res.ok) {
           onRefreshData();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          showFeedback(undefined, errData.error || 'Server error updating site content.');
         }
       }).catch((err) => {
         console.error('Background site content sync error:', err);

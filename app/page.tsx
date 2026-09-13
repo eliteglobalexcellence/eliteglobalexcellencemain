@@ -44,7 +44,18 @@ import { AdminPinModal } from '@/components/modals/AdminPinModal';
 import { WorkshopAttendanceModal } from '@/components/modals/WorkshopAttendanceModal';
 
 export default function App() {
-  const [data, setData] = useState<DatabaseState>(initialDatabaseState);
+  const [data, setData] = useState<DatabaseState>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('ege_cached_database');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.siteContent) return parsed;
+        }
+      } catch (e) {}
+    }
+    return initialDatabaseState;
+  });
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [currentSubTab, setCurrentSubTab] = useState<string | undefined>(undefined);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
@@ -84,6 +95,11 @@ export default function App() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('ege_cached_database', JSON.stringify(json));
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.warn('Using client memory/seed state fallback:', err);
