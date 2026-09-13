@@ -9932,7 +9932,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   </button>
                                 ) : (
                                   <a
-                                    href={`/certificate?id=${encodeURIComponent(att.certId)}`}
+                                    href={`/certificate?id=${encodeURIComponent(att.certId || '')}`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="bg-blue-50 text-[#045494] hover:bg-blue-100 font-bold text-xs px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer transition border border-blue-200"

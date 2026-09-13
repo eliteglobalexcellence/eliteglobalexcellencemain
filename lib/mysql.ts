@@ -299,11 +299,101 @@ export async function initMysqlTables(): Promise<boolean> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    await autoSeedMysqlIfEmpty(p);
+
     tablesInitialized = true;
     return true;
   } catch (error) {
     console.error('Failed to initialize MySQL tables:', error);
     return false;
+  }
+}
+
+async function autoSeedMysqlIfEmpty(p: mysql.Pool): Promise<void> {
+  try {
+    const [rows]: any = await p.query('SELECT COUNT(*) as cnt FROM workshops');
+    const count = Array.isArray(rows) && rows[0] ? Number(rows[0].cnt) : 0;
+    if (count > 0) return;
+
+    console.log('[MySQL] Empty database detected. Auto-seeding database from initialDatabase...');
+
+    if (Array.isArray(initialDatabase.users)) {
+      for (const item of initialDatabase.users) {
+        await saveSingleItemToMysql('users', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.ambassadors)) {
+      for (const item of initialDatabase.ambassadors) {
+        await saveSingleItemToMysql('ambassadors', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.events)) {
+      for (const item of initialDatabase.events) {
+        await saveSingleItemToMysql('events', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.newsArticles)) {
+      for (const item of initialDatabase.newsArticles) {
+        await saveSingleItemToMysql('newsArticles', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.partners)) {
+      for (const item of initialDatabase.partners) {
+        await saveSingleItemToMysql('partners', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.workshops)) {
+      for (const item of initialDatabase.workshops) {
+        await saveSingleItemToMysql('workshops', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.workshopRegistrations)) {
+      for (const item of initialDatabase.workshopRegistrations) {
+        await saveSingleItemToMysql('workshopRegistrations', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.workshopAttendances)) {
+      for (const item of initialDatabase.workshopAttendances) {
+        await saveSingleItemToMysql('workshopAttendances', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.courses)) {
+      for (const item of initialDatabase.courses) {
+        await saveSingleItemToMysql('courses', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.researchMembers)) {
+      for (const item of initialDatabase.researchMembers) {
+        await saveSingleItemToMysql('researchMembers', 'CREATE', item);
+      }
+    }
+    const careersList = initialDatabase.careers || initialDatabase.careerRoles || [];
+    if (Array.isArray(careersList)) {
+      for (const item of careersList) {
+        await saveSingleItemToMysql('careers', 'CREATE', item);
+      }
+    }
+    const inboxList = initialDatabase.inboxMessages || initialDatabase.inbox || [];
+    if (Array.isArray(inboxList)) {
+      for (const item of inboxList) {
+        await saveSingleItemToMysql('inboxMessages', 'CREATE', item);
+      }
+    }
+    if (Array.isArray(initialDatabase.certificates)) {
+      for (const item of initialDatabase.certificates) {
+        await saveSingleItemToMysql('certificates', 'CREATE', item);
+      }
+    }
+    if (initialDatabase.siteContent) {
+      await saveSingleItemToMysql('siteContent', 'CREATE', initialDatabase.siteContent);
+    }
+    if (initialDatabase.contactSettings) {
+      await saveSingleItemToMysql('contactSettings', 'CREATE', initialDatabase.contactSettings);
+    }
+
+    console.log('[MySQL] Auto-seeding completed successfully.');
+  } catch (err) {
+    console.error('[MySQL] Auto-seeding error:', err);
   }
 }
 

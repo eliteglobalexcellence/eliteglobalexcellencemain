@@ -128,8 +128,8 @@ export async function POST(req: NextRequest) {
 
     // Save Email Dispatch Log to Database
     try {
-      const { getDatabase, saveDatabase } = await import('@/lib/db');
-      const db = getDatabase();
+      const { getDatabaseAsync, saveDatabase } = await import('@/lib/db');
+      const db = await getDatabaseAsync();
       if (!Array.isArray((db as any).emailLogs)) {
         (db as any).emailLogs = [];
       }

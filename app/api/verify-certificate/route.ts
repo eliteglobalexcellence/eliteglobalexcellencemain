@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseAsync } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please enter a valid Certificate ID or Participant Name.' }, { status: 400 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseAsync();
     const cleanQuery = query.trim().toLowerCase();
 
     const certList = db.certificates || [];
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
           (w) => (w.workshopId || `EGEW${w.id}`).toUpperCase() === attMatch.workshopId.toUpperCase()
         );
         matched = {
-          id: attMatch.certId,
+          id: attMatch.certId || `EGE-CERT-${attMatch.id}`,
           participantName: attMatch.fullName,
           workshopTitle: ws ? ws.title : 'Elite Global Excellence Academic Masterclass',
           issueDate: attMatch.submittedAt || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),

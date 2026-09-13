@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '@/lib/db';
+import { getDatabaseAsync, saveDatabase, invalidateMysqlCache } from '@/lib/db';
+import { isMysqlConfigured, saveSingleItemToMysql } from '@/lib/mysql';
 import { Testimonial } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please enter your feedback / review text.' }, { status: 400 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseAsync();
     if (!db.siteContent) {
       db.siteContent = {} as any;
     }
@@ -48,6 +49,15 @@ export async function POST(req: NextRequest) {
 
     db.siteContent.testimonials.unshift(newTestimonial);
     saveDatabase(db);
+
+    if (isMysqlConfigured()) {
+      try {
+        await saveSingleItemToMysql('siteContent', 'UPDATE', db.siteContent);
+        invalidateMysqlCache();
+      } catch (err) {
+        console.warn('MySQL testimonial save error:', err);
+      }
+    }
 
     return NextResponse.json({
       success: true,

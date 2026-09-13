@@ -111,7 +111,7 @@ export interface WorkshopRegistration {
 export interface WorkshopAttendance {
   id: string;
   workshopId: string; // e.g. EGEW14
-  certId: string; // e.g. EGEW14-CERT01
+  certId?: string; // e.g. EGEW14-CERT01
   fullName: string; // Full Name to be displayed on Certificate
   email: string;
   satisfied: string; // e.g. "Yes, Very Satisfied"
@@ -918,4 +918,5 @@ export interface DatabaseState {
   inboxMessages: InboxMessage[];
   inbox?: InboxMessage[];
   certificates: CertificateRecord[];
+  emailLogs?: any[];
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '@/lib/db';
+import { getDatabaseAsync, saveDatabase, invalidateMysqlCache } from '@/lib/db';
 import { isMysqlConfigured, saveSingleItemToMysql } from '@/lib/mysql';
 
 export async function POST(req: NextRequest) {
@@ -14,19 +14,22 @@ export async function POST(req: NextRequest) {
     const item = body.item || body.payload || {};
     const id = body.id || item?.id;
 
-    const isPublicAction = ['workshopRegistrations', 'workshopAttendances', 'inboxMessages', 'testimonials'].includes(collection) && action === 'create';
+    const isPublicAction = ['workshopRegistrations', 'workshopAttendances', 'inboxMessages', 'testimonials'].includes(collection) && (action === 'create' || action === 'update');
 
     if (!isPublicAction && reqSecret !== adminSecret) {
       return NextResponse.json({ error: 'Unauthorized: Invalid Admin Secret key.' }, { status: 401 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseAsync();
 
-    // Async sync to MySQL database if configured
+    // Synchronous sync to MySQL database if configured
     if (isMysqlConfigured()) {
-      saveSingleItemToMysql(collection, actionUpper, { ...item, id: id || item?.id }).catch((err) =>
-        console.warn('MySQL single item save warning:', err)
-      );
+      try {
+        await saveSingleItemToMysql(collection, actionUpper, { ...item, id: id || item?.id });
+        invalidateMysqlCache();
+      } catch (err) {
+        console.warn('MySQL single item save warning:', err);
+      }
     }
 
     // Special singletons: siteContent & contactSettings
@@ -34,6 +37,10 @@ export async function POST(req: NextRequest) {
       if (action === 'update' || action === 'create') {
         db.siteContent = { ...db.siteContent, ...item };
         saveDatabase(db);
+        if (isMysqlConfigured()) {
+          await saveSingleItemToMysql('siteContent', 'UPDATE', db.siteContent);
+          invalidateMysqlCache();
+        }
         return NextResponse.json({ success: true, data: db.siteContent });
       }
     }
@@ -42,6 +49,10 @@ export async function POST(req: NextRequest) {
       if (action === 'update' || action === 'create') {
         db.contactSettings = { ...db.contactSettings, ...item };
         saveDatabase(db);
+        if (isMysqlConfigured()) {
+          await saveSingleItemToMysql('contactSettings', 'UPDATE', db.contactSettings);
+          invalidateMysqlCache();
+        }
         return NextResponse.json({ success: true, data: db.contactSettings });
       }
     }

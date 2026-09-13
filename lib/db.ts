@@ -18,6 +18,10 @@ function ensureDataDir() {
 let inMemoryDb: DatabaseState | null = null;
 let lastMysqlFetch = 0;
 
+export function invalidateMysqlCache(): void {
+  lastMysqlFetch = 0;
+}
+
 function normalizeDatabase(db: any): DatabaseState {
   if (!db) return JSON.parse(JSON.stringify(initialDatabase));
   if (!db.inboxMessages) db.inboxMessages = db.inbox || [];

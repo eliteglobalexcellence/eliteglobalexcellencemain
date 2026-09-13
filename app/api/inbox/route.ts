@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '@/lib/db';
+import { getDatabaseAsync, saveDatabase, invalidateMysqlCache } from '@/lib/db';
+import { isMysqlConfigured, saveSingleItemToMysql } from '@/lib/mysql';
 import { InboxMessage } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and Email are required.' }, { status: 400 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseAsync();
 
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -39,6 +40,15 @@ export async function POST(req: NextRequest) {
     db.inboxMessages.unshift(newMessage);
     db.inbox = db.inboxMessages;
     saveDatabase(db);
+
+    if (isMysqlConfigured()) {
+      try {
+        await saveSingleItemToMysql('inboxMessages', 'CREATE', newMessage);
+        invalidateMysqlCache();
+      } catch (err) {
+        console.warn('MySQL inbox save error:', err);
+      }
+    }
 
     return NextResponse.json({
       success: true,
