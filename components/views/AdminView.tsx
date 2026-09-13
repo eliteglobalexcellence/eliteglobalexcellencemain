@@ -415,6 +415,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('ege_data_last_saved', Date.now().toString());
       window.dispatchEvent(new Event('ege_data_updated'));
+      try {
+        const bc = new BroadcastChannel('ege_admin_sync');
+        bc.postMessage('refresh');
+        bc.close();
+      } catch (e) {}
     }
   };
 

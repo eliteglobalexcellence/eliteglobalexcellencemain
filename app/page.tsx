@@ -109,9 +109,22 @@ export default function App() {
     window.addEventListener('storage', handleSync);
     window.addEventListener('ege_data_updated', handleSync);
 
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('ege_admin_sync');
+      bc.onmessage = () => refreshData();
+    } catch (e) {}
+
+    // Smart background poll every 4s so remote admin edits appear automatically
+    const pollInterval = setInterval(() => {
+      refreshData();
+    }, 4000);
+
     return () => {
       window.removeEventListener('storage', handleSync);
       window.removeEventListener('ege_data_updated', handleSync);
+      if (bc) bc.close();
+      clearInterval(pollInterval);
     };
   }, []);
 

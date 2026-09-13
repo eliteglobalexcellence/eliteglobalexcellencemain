@@ -79,11 +79,6 @@ function normalizeDatabase(db: any): DatabaseState {
     }
     if (!db.siteContent.contactPage) {
       db.siteContent.contactPage = JSON.parse(JSON.stringify(initialDatabase.siteContent.contactPage));
-    } else {
-      db.siteContent.contactPage = {
-        ...JSON.parse(JSON.stringify(initialDatabase.siteContent.contactPage)),
-        ...db.siteContent.contactPage,
-      };
     }
     if (!db.siteContent.conferencesPage) {
       db.siteContent.conferencesPage = JSON.parse(JSON.stringify(initialDatabase.siteContent.conferencesPage));
