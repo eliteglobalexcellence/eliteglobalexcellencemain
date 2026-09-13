@@ -116,7 +116,7 @@ export function getDatabase(): DatabaseState {
 }
 
 export async function getDatabaseAsync(): Promise<DatabaseState> {
-  if (isMysqlConfigured() && Date.now() - lastMysqlFetch > 5000) {
+  if (isMysqlConfigured() && Date.now() - lastMysqlFetch > 15000) {
     const mysqlDb = await fetchFullDatabaseFromMysql();
     if (mysqlDb) {
       inMemoryDb = normalizeDatabase(mysqlDb);
@@ -131,11 +131,13 @@ export async function getDatabaseAsync(): Promise<DatabaseState> {
 function saveDatabaseToDisk(data: DatabaseState): void {
   ensureDataDir();
   inMemoryDb = data;
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to write database to disk:', error);
-  }
+  setImmediate(() => {
+    try {
+      fs.writeFile(DB_FILE, JSON.stringify(data), 'utf-8', () => {});
+    } catch (error) {
+      console.error('Failed to write database to disk:', error);
+    }
+  });
 }
 
 export function saveDatabase(data: DatabaseState): void {

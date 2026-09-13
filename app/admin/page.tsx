@@ -56,7 +56,6 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    refreshData();
     // Always require explicit authentication when navigating to /admin
     setIsAuthenticated(false);
     localStorage.removeItem('ege_master_admin_auth');
@@ -65,12 +64,10 @@ export default function AdminPage() {
     const handleSync = () => refreshData();
     window.addEventListener('storage', handleSync);
     window.addEventListener('ege_data_updated', handleSync);
-    window.addEventListener('focus', handleSync);
 
     return () => {
       window.removeEventListener('storage', handleSync);
       window.removeEventListener('ege_data_updated', handleSync);
-      window.removeEventListener('focus', handleSync);
     };
   }, []);
 
@@ -79,23 +76,22 @@ export default function AdminPage() {
     setErrorMsg('');
     setSubmitting(true);
 
-    setTimeout(() => {
-      // Master Credentials Check:
-      // Email: admin@eliteglobal.com OR username: admin
-      // Password: MasterAdmin2026! OR PIN: 1234
-      const validEmail = email.trim().toLowerCase() === 'admin@eliteglobal.com' || email.trim().toLowerCase() === 'admin';
-      const validPass = password === 'MasterAdmin2026!' || password === '1234';
+    // Master Credentials Check:
+    // Email: admin@eliteglobal.com OR username: admin
+    // Password: MasterAdmin2026! OR PIN: 1234
+    const validEmail = email.trim().toLowerCase() === 'admin@eliteglobal.com' || email.trim().toLowerCase() === 'admin';
+    const validPass = password === 'MasterAdmin2026!' || password === '1234';
 
-      if (validEmail && validPass) {
-        localStorage.setItem('ege_master_admin_auth', 'true');
-        setIsAuthenticated(true);
-        addToast('success', 'Master Admin authenticated successfully. Welcome back!');
-      } else {
-        setErrorMsg('Invalid Master Admin credentials. Please check your email/username and password.');
-        addToast('error', 'Authentication failed. Please verify credentials.');
-      }
-      setSubmitting(false);
-    }, 600);
+    if (validEmail && validPass) {
+      localStorage.setItem('ege_master_admin_auth', 'true');
+      setIsAuthenticated(true);
+      refreshData();
+      addToast('success', 'Master Admin authenticated successfully. Welcome back!');
+    } else {
+      setErrorMsg('Invalid Master Admin credentials. Please check your email/username and password.');
+      addToast('error', 'Authentication failed. Please verify credentials.');
+    }
+    setSubmitting(false);
   };
 
   const handleLogout = () => {

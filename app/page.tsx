@@ -108,12 +108,10 @@ export default function App() {
 
     window.addEventListener('storage', handleSync);
     window.addEventListener('ege_data_updated', handleSync);
-    window.addEventListener('focus', handleSync);
 
     return () => {
       window.removeEventListener('storage', handleSync);
       window.removeEventListener('ege_data_updated', handleSync);
-      window.removeEventListener('focus', handleSync);
     };
   }, []);
 
