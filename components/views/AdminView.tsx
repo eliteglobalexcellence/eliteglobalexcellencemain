@@ -353,25 +353,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   useEffect(() => {
     if (data?.siteContent) {
-      setContentForm({
-        ...initialDatabase.siteContent,
+      setContentForm((prev) => ({
+        ...prev,
         ...data.siteContent,
-        servicesPage: data.siteContent.servicesPage || initialDatabase.siteContent.servicesPage,
-        workshopManagement: data.siteContent.workshopManagement || initialDatabase.siteContent.workshopManagement,
-        coursesPage: data.siteContent.coursesPage || initialDatabase.siteContent.coursesPage,
-        mockVivaPage: data.siteContent.mockVivaPage || initialDatabase.siteContent.mockVivaPage,
-        ambassadorsPage: data.siteContent.ambassadorsPage || initialDatabase.siteContent.ambassadorsPage,
-        researchNetworkPage: data.siteContent.researchNetworkPage || initialDatabase.siteContent.researchNetworkPage,
-        partnersPage: data.siteContent.partnersPage || initialDatabase.siteContent.partnersPage,
-        careersPage: data.siteContent.careersPage || initialDatabase.siteContent.careersPage,
-        newsPage: data.siteContent.newsPage || initialDatabase.siteContent.newsPage,
-        contactPage: {
-          ...initialDatabase.siteContent.contactPage,
-          ...(data.siteContent.contactPage || {}),
-        },
-        conferencesPage: data.siteContent.conferencesPage || initialDatabase.siteContent.conferencesPage,
-        footerContent: data.siteContent.footerContent || initialDatabase.siteContent.footerContent,
-      });
+      }));
     }
   }, [data?.siteContent]);
 
