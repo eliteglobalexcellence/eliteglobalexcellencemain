@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { initialDatabase } from './seedData';
 import { DatabaseState } from './types';
+import { isMysqlConfigured, fetchFullDatabaseFromMysql, saveSingleItemToMysql } from './mysql';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'ege_database.json');
@@ -15,6 +16,7 @@ function ensureDataDir() {
 
 // Memory cache for quick access
 let inMemoryDb: DatabaseState | null = null;
+let lastMysqlFetch = 0;
 
 function normalizeDatabase(db: any): DatabaseState {
   if (!db) return JSON.parse(JSON.stringify(initialDatabase));
@@ -109,7 +111,20 @@ export function getDatabase(): DatabaseState {
   return inMemoryDb!;
 }
 
-export function saveDatabase(data: DatabaseState): void {
+export async function getDatabaseAsync(): Promise<DatabaseState> {
+  if (isMysqlConfigured() && Date.now() - lastMysqlFetch > 5000) {
+    const mysqlDb = await fetchFullDatabaseFromMysql();
+    if (mysqlDb) {
+      inMemoryDb = normalizeDatabase(mysqlDb);
+      lastMysqlFetch = Date.now();
+      saveDatabaseToDisk(inMemoryDb);
+      return inMemoryDb;
+    }
+  }
+  return getDatabase();
+}
+
+function saveDatabaseToDisk(data: DatabaseState): void {
   ensureDataDir();
   inMemoryDb = data;
   try {
@@ -117,6 +132,14 @@ export function saveDatabase(data: DatabaseState): void {
   } catch (error) {
     console.error('Failed to write database to disk:', error);
   }
+}
+
+export function saveDatabase(data: DatabaseState): void {
+  saveDatabaseToDisk(data);
+}
+
+export async function saveDatabaseAsync(data: DatabaseState): Promise<void> {
+  saveDatabaseToDisk(data);
 }
 
 export function resetDatabase(): DatabaseState {

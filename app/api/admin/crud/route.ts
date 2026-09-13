@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase, saveDatabase } from '@/lib/db';
-import { DatabaseState } from '@/lib/types';
+import { isMysqlConfigured, saveSingleItemToMysql } from '@/lib/mysql';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,17 +9,25 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const action = String(body.action || '').toLowerCase();
+    const actionUpper = (body.action || 'CREATE').toUpperCase() as 'CREATE' | 'UPDATE' | 'DELETE';
     const collection = String(body.collection || body.entity || '');
     const item = body.item || body.payload || {};
     const id = body.id || item?.id;
 
     const isPublicAction = ['workshopRegistrations', 'workshopAttendances', 'inboxMessages', 'testimonials'].includes(collection) && action === 'create';
-    
+
     if (!isPublicAction && reqSecret !== adminSecret) {
       return NextResponse.json({ error: 'Unauthorized: Invalid Admin Secret key.' }, { status: 401 });
     }
 
     const db = getDatabase();
+
+    // Async sync to MySQL database if configured
+    if (isMysqlConfigured()) {
+      saveSingleItemToMysql(collection, actionUpper, { ...item, id: id || item?.id }).catch((err) =>
+        console.warn('MySQL single item save warning:', err)
+      );
+    }
 
     // Special singletons: siteContent & contactSettings
     if (collection === 'siteContent') {
