@@ -4,11 +4,9 @@ import { initialDatabase } from './seedData';
 
 let pool: mysql.Pool | null = null;
 let tablesInitialized = false;
-let mysqlDisabledUntil = 0;
+let isInitializingTables = false;
 
 export function isMysqlConfigured(): boolean {
-  if (Date.now() < mysqlDisabledUntil) return false;
-
   const hasUrl = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim().length > 0);
   const hasHost = Boolean(
     (process.env.MYSQL_HOST && process.env.MYSQL_HOST.trim().length > 0) ||
@@ -19,7 +17,7 @@ export function isMysqlConfigured(): boolean {
 }
 
 export function disableMysqlTemporarily(): void {
-  mysqlDisabledUntil = Date.now() + 30000; // Disable for 30s on connection failure
+  // No-op: MySQL mode is strictly enforced
 }
 
 export function getMysqlPool(): mysql.Pool {
@@ -54,7 +52,9 @@ export function getMysqlPool(): mysql.Pool {
 
 export async function initMysqlTables(): Promise<boolean> {
   if (tablesInitialized) return true;
+  if (isInitializingTables) return true;
 
+  isInitializingTables = true;
   try {
     const p = getMysqlPool();
 
@@ -307,14 +307,19 @@ export async function initMysqlTables(): Promise<boolean> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    tablesInitialized = true;
     await autoSeedMysqlIfEmpty(p);
 
-    tablesInitialized = true;
     return true;
-  } catch (error) {
-    console.error('Failed to initialize MySQL tables:', error);
-    disableMysqlTemporarily();
+  } catch (error: any) {
+    if (error?.code === 'ECONNREFUSED' || error?.message?.includes('ECONNREFUSED')) {
+      console.warn('[MySQL] Cannot connect to MySQL on localhost:3306 (ECONNREFUSED). Please ensure MySQL is started in XAMPP Control Panel.');
+    } else {
+      console.error('[MySQL] Failed to initialize MySQL tables:', error?.message || error);
+    }
     return false;
+  } finally {
+    isInitializingTables = false;
   }
 }
 
@@ -503,7 +508,6 @@ export async function fetchFullDatabaseFromMysql(): Promise<DatabaseState | null
     };
   } catch (error) {
     console.error('Failed to fetch full database from MySQL:', error);
-    disableMysqlTemporarily();
     return null;
   }
 }

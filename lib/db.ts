@@ -1,18 +1,6 @@
-import fs from 'fs';
-import path from 'path';
 import { initialDatabase } from './seedData';
 import { DatabaseState } from './types';
-import { isMysqlConfigured, fetchFullDatabaseFromMysql, saveSingleItemToMysql } from './mysql';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DATA_DIR, 'ege_database.json');
-
-// Ensure data directory exists
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
+import { fetchFullDatabaseFromMysql } from './mysql';
 
 // Memory cache for quick access
 let inMemoryDb: DatabaseState | null = null;
@@ -20,6 +8,7 @@ let lastMysqlFetch = 0;
 
 export function invalidateMysqlCache(): void {
   lastMysqlFetch = 0;
+  inMemoryDb = null;
 }
 
 function normalizeDatabase(db: any): DatabaseState {
@@ -91,60 +80,36 @@ export function getDatabase(): DatabaseState {
   if (inMemoryDb) {
     return normalizeDatabase(inMemoryDb);
   }
-
-  ensureDataDir();
-
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const fileData = fs.readFileSync(DB_FILE, 'utf-8');
-      inMemoryDb = normalizeDatabase(JSON.parse(fileData));
-      return inMemoryDb!;
-    }
-  } catch (error) {
-    console.error('Error reading database file, using seed data:', error);
-  }
-
-  // Initialize with seed data
-  inMemoryDb = normalizeDatabase(JSON.parse(JSON.stringify(initialDatabase)));
-  saveDatabase(inMemoryDb!);
-  return inMemoryDb!;
+  return normalizeDatabase(JSON.parse(JSON.stringify(initialDatabase)));
 }
 
 export async function getDatabaseAsync(): Promise<DatabaseState> {
-  if (isMysqlConfigured() && Date.now() - lastMysqlFetch > 15000) {
-    const mysqlDb = await fetchFullDatabaseFromMysql();
-    if (mysqlDb) {
-      inMemoryDb = normalizeDatabase(mysqlDb);
-      lastMysqlFetch = Date.now();
-      saveDatabaseToDisk(inMemoryDb);
-      return inMemoryDb;
-    }
+  // Short 2s cache to optimize parallel route rendering while keeping data 100% live from MySQL
+  if (inMemoryDb && Date.now() - lastMysqlFetch < 2000) {
+    return inMemoryDb;
   }
+
+  const mysqlDb = await fetchFullDatabaseFromMysql();
+  if (mysqlDb) {
+    inMemoryDb = normalizeDatabase(mysqlDb);
+    lastMysqlFetch = Date.now();
+    return inMemoryDb;
+  }
+
   return getDatabase();
 }
 
-function saveDatabaseToDisk(data: DatabaseState): void {
-  ensureDataDir();
-  inMemoryDb = data;
-  setImmediate(() => {
-    try {
-      fs.writeFile(DB_FILE, JSON.stringify(data), 'utf-8', () => {});
-    } catch (error) {
-      console.error('Failed to write database to disk:', error);
-    }
-  });
-}
-
 export function saveDatabase(data: DatabaseState): void {
-  saveDatabaseToDisk(data);
+  inMemoryDb = normalizeDatabase(data);
+  lastMysqlFetch = 0;
 }
 
 export async function saveDatabaseAsync(data: DatabaseState): Promise<void> {
-  saveDatabaseToDisk(data);
+  saveDatabase(data);
 }
 
 export function resetDatabase(): DatabaseState {
   inMemoryDb = JSON.parse(JSON.stringify(initialDatabase));
-  saveDatabase(inMemoryDb!);
+  lastMysqlFetch = 0;
   return inMemoryDb!;
 }

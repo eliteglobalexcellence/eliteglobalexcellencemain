@@ -571,7 +571,7 @@ export interface ExecutiveMember {
   title: string;
   category: 'CEO' | 'CO_FOUNDER' | 'EXECUTIVE_LEADER' | 'BOARD_MEMBER' | string;
   photoUrl?: string;
-  summary: string;
+  summary?: string;
   fullBio?: string;
   organization?: string;
   displayOrder?: number;
