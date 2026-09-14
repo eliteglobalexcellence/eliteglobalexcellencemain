@@ -42,9 +42,12 @@ export function getMysqlPool(): mysql.Pool {
     password,
     database,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 5,
+    maxIdle: 5,
+    idleTimeout: 30000,
+    enableKeepAlive: true,
     queueLimit: 0,
-    connectTimeout: 3000,
+    connectTimeout: 5000,
   });
 
   return pool;

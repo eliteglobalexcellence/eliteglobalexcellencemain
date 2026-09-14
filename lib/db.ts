@@ -104,17 +104,29 @@ export function getDatabase(): DatabaseState {
   return inMemoryDb;
 }
 
+let pendingMysqlFetchPromise: Promise<DatabaseState | null> | null = null;
+
 export async function getDatabaseAsync(): Promise<DatabaseState> {
-  if (inMemoryDb && Date.now() - lastMysqlFetch < 2000) {
+  if (inMemoryDb && Date.now() - lastMysqlFetch < 3000) {
     return inMemoryDb;
   }
 
-  const mysqlDb = await fetchFullDatabaseFromMysql();
-  if (mysqlDb) {
-    inMemoryDb = normalizeDatabase(mysqlDb);
-    lastMysqlFetch = Date.now();
-    saveDiskFallback(inMemoryDb);
-    return inMemoryDb;
+  if (pendingMysqlFetchPromise) {
+    const res = await pendingMysqlFetchPromise;
+    if (res) return normalizeDatabase(res);
+  }
+
+  pendingMysqlFetchPromise = fetchFullDatabaseFromMysql();
+  try {
+    const mysqlDb = await pendingMysqlFetchPromise;
+    if (mysqlDb) {
+      inMemoryDb = normalizeDatabase(mysqlDb);
+      lastMysqlFetch = Date.now();
+      saveDiskFallback(inMemoryDb);
+      return inMemoryDb;
+    }
+  } finally {
+    pendingMysqlFetchPromise = null;
   }
 
   return getDatabase();

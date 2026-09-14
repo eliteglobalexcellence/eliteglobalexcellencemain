@@ -42,6 +42,8 @@ export default function AdminPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const syncTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   // Fetch live database state from API
   const refreshData = async () => {
     try {
@@ -55,17 +57,25 @@ export default function AdminPage() {
     }
   };
 
+  const debouncedRefreshData = () => {
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => {
+      refreshData();
+    }, 300);
+  };
+
   useEffect(() => {
     // Always require explicit authentication when navigating to /admin
     setIsAuthenticated(false);
     localStorage.removeItem('ege_master_admin_auth');
     setLoading(false);
 
-    const handleSync = () => refreshData();
+    const handleSync = () => debouncedRefreshData();
     window.addEventListener('storage', handleSync);
     window.addEventListener('ege_data_updated', handleSync);
 
     return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
       window.removeEventListener('storage', handleSync);
       window.removeEventListener('ege_data_updated', handleSync);
     };
