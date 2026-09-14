@@ -11834,3 +11834,5 @@ export const AdminView: React.FC<AdminViewProps> = ({
     </div>
   );
 };
+
+export default AdminView;
