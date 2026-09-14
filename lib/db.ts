@@ -130,7 +130,7 @@ export async function saveDatabaseAsync(data: DatabaseState): Promise<void> {
 }
 
 export function resetDatabase(): DatabaseState {
-  inMemoryDb = JSON.parse(JSON.stringify(initialDatabase));
-  saveDiskFallback(inMemoryDb);
+  inMemoryDb = normalizeDatabase(JSON.parse(JSON.stringify(initialDatabase)));
+  saveDiskFallback(inMemoryDb!);
   return inMemoryDb!;
 }
