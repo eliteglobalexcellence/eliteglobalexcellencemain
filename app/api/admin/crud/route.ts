@@ -64,6 +64,31 @@ export async function POST(req: NextRequest) {
       if (targetCollection === 'inboxMessages') {
         db.inbox = list;
       }
+
+      // Automatically create inbox copy for workshop registrations
+      if (collection === 'workshopRegistrations') {
+        const inboxItem = {
+          id: `msg-reg-${Date.now()}`,
+          type: 'WORKSHOP_REGISTRATION',
+          name: newItem.fullName || '',
+          email: newItem.email || '',
+          phone: newItem.phone || '',
+          subject: `Workshop Registration [${newItem.registrationId || newItem.id}]: ${newItem.workshopId || ''}`,
+          packageSelected: newItem.workshopId || 'Upcoming Workshop',
+          message: `Registration ID: ${newItem.registrationId || ''}\nInstitute: ${newItem.institute || ''} (${newItem.department || ''})\nRole: ${newItem.role || ''} | Level: ${newItem.levelOfStudy || ''}\nCountry: ${newItem.country || ''}\nKeynote Interest: ${newItem.isKeynoteSpeaker || ''}`,
+          metadata: newItem,
+          read: false,
+          createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        };
+        if (Array.isArray(db.inboxMessages)) {
+          db.inboxMessages.unshift(inboxItem);
+          db.inbox = db.inboxMessages;
+        }
+        if (isMysqlConfigured()) {
+          saveSingleItemToMysql('inboxMessages', 'CREATE', inboxItem).catch(() => {});
+        }
+      }
+
       saveDatabase(db);
 
       if (isMysqlConfigured()) {

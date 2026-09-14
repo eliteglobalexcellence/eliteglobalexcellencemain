@@ -20,7 +20,7 @@ let inMemoryDb: DatabaseState | null = null;
 let lastMysqlFetch = 0;
 
 export function invalidateMysqlCache(): void {
-  lastMysqlFetch = 0;
+  lastMysqlFetch = Date.now();
 }
 
 function normalizeDatabase(db: any): DatabaseState {

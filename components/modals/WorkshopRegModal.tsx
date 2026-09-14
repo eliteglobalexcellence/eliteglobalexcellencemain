@@ -165,21 +165,7 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
         console.warn('Reg save warning:', err);
       }
 
-      // 2. Send Inbox Copy asynchronously
-      fetch('/api/inbox', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'WORKSHOP_REGISTRATION',
-          name: fullName,
-          email: targetEmail,
-          phone,
-          subject: `Workshop Registration [${generatedRegId}]: ${activeTitle}`,
-          packageSelected: activeTitle,
-          message: `Registration ID: ${generatedRegId}\nInstitute: ${institute} (${department})\nRole: ${role} | Level: ${levelOfStudy}\nCountry: ${country}\nKeynote Interest: ${isKeynoteSpeaker}`,
-          metadata: newRegistration,
-        }),
-      }).catch((err) => console.warn('Inbox notify fallback:', err));
+
 
       // 3. Send Automated Confirmation Email asynchronously
       fetch('/api/email', {
