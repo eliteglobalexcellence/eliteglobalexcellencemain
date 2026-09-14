@@ -445,7 +445,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         } else if (entity === 'inbox' || entity === 'inboxMessages') {
           data.inboxMessages = (data.inboxMessages || []).filter((m) => String(m.id) !== String(payload.id));
           data.inbox = data.inboxMessages;
-        } else if (entity === 'workshopRegistrations') data.workshopRegistrations = (data.workshopRegistrations || []).filter((r) => String(r.id) !== String(payload.id));
+        } else if (entity === 'workshopRegistrations') data.workshopRegistrations = (data.workshopRegistrations || []).filter((r) => String(r.id) !== String(payload.id) && String(r.registrationId || '') !== String(payload.registrationId || payload.id || ''));
         else if (entity === 'workshopAttendances') data.workshopAttendances = (data.workshopAttendances || []).filter((a) => String(a.id) !== String(payload.id));
         else if (entity === 'testimonials') {
           if (data.siteContent) {
@@ -9744,7 +9744,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <Edit3 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleAdminCrud('DELETE', 'workshopRegistrations', { id: user.id })}
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete registration for "${user.fullName}" (${user.registrationId || user.id})?`)) {
+                                    handleAdminCrud('DELETE', 'workshopRegistrations', { id: user.id, registrationId: user.registrationId });
+                                  }
+                                }}
                                 className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                                 title="Delete Registration"
                               >

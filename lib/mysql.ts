@@ -519,19 +519,24 @@ export async function saveSingleItemToMysql(entity: string, action: 'CREATE' | '
     const id = String(payload.id || payload.certificate_id || Date.now());
 
     if (action === 'DELETE') {
-      if (entity === 'users') await p.query(`DELETE FROM users WHERE id = ?`, [id]);
-      else if (entity === 'ambassadors') await p.query(`DELETE FROM ambassadors WHERE id = ?`, [id]);
-      else if (entity === 'events') await p.query(`DELETE FROM events WHERE id = ?`, [id]);
-      else if (entity === 'newsArticles' || entity === 'news') await p.query(`DELETE FROM news_articles WHERE id = ?`, [id]);
-      else if (entity === 'partners') await p.query(`DELETE FROM partners WHERE id = ?`, [id]);
-      else if (entity === 'workshops') await p.query(`DELETE FROM workshops WHERE id = ?`, [id]);
-      else if (entity === 'workshopRegistrations') await p.query(`DELETE FROM workshop_registrations WHERE id = ?`, [id]);
-      else if (entity === 'workshopAttendances') await p.query(`DELETE FROM workshop_attendances WHERE id = ?`, [id]);
-      else if (entity === 'courses') await p.query(`DELETE FROM courses WHERE id = ?`, [id]);
-      else if (entity === 'researchMembers') await p.query(`DELETE FROM research_members WHERE id = ?`, [id]);
-      else if (entity === 'careerRoles' || entity === 'careers') await p.query(`DELETE FROM careers WHERE id = ?`, [id]);
-      else if (entity === 'inbox' || entity === 'inboxMessages') await p.query(`DELETE FROM inbox_messages WHERE id = ?`, [id]);
-      else if (entity === 'certificates') await p.query(`DELETE FROM certificates WHERE id = ?`, [id]);
+      const deleteId = String(payload.id || payload.registrationId || payload.certificate_id || payload.workshopId || Date.now());
+      const regId = String(payload.registrationId || payload.id || '');
+      const wsId = String(payload.workshopId || payload.id || '');
+      const code = String(payload.code || payload.id || '');
+
+      if (entity === 'users') await p.query(`DELETE FROM users WHERE id = ?`, [deleteId]);
+      else if (entity === 'ambassadors') await p.query(`DELETE FROM ambassadors WHERE id = ?`, [deleteId]);
+      else if (entity === 'events') await p.query(`DELETE FROM events WHERE id = ?`, [deleteId]);
+      else if (entity === 'newsArticles' || entity === 'news') await p.query(`DELETE FROM news_articles WHERE id = ?`, [deleteId]);
+      else if (entity === 'partners') await p.query(`DELETE FROM partners WHERE id = ?`, [deleteId]);
+      else if (entity === 'workshops') await p.query(`DELETE FROM workshops WHERE id = ? OR workshopId = ?`, [deleteId, wsId]);
+      else if (entity === 'workshopRegistrations') await p.query(`DELETE FROM workshop_registrations WHERE id = ? OR registrationId = ?`, [deleteId, regId]);
+      else if (entity === 'workshopAttendances') await p.query(`DELETE FROM workshop_attendances WHERE id = ? OR certId = ?`, [deleteId, deleteId]);
+      else if (entity === 'courses') await p.query(`DELETE FROM courses WHERE id = ? OR code = ?`, [deleteId, code]);
+      else if (entity === 'researchMembers') await p.query(`DELETE FROM research_members WHERE id = ?`, [deleteId]);
+      else if (entity === 'careerRoles' || entity === 'careers') await p.query(`DELETE FROM careers WHERE id = ?`, [deleteId]);
+      else if (entity === 'inbox' || entity === 'inboxMessages') await p.query(`DELETE FROM inbox_messages WHERE id = ?`, [deleteId]);
+      else if (entity === 'certificates') await p.query(`DELETE FROM certificates WHERE id = ?`, [deleteId]);
       return true;
     }
 

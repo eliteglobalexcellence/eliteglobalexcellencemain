@@ -94,8 +94,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'delete') {
-      const targetId = id || item?.id;
-      const filtered = list.filter((i: any) => String(i.id) !== String(targetId));
+      const targetId = String(id || item?.id || item?.registrationId || item?.workshopId || '');
+      const regId = String(item?.registrationId || '');
+      const wsId = String(item?.workshopId || '');
+
+      const filtered = list.filter((i: any) => {
+        const itemId = String(i.id || '');
+        const itemRegId = String(i.registrationId || '');
+        const itemWsId = String(i.workshopId || '');
+        if (targetId && itemId === targetId) return false;
+        if (regId && itemRegId === regId) return false;
+        if (targetId && itemRegId === targetId) return false;
+        if (wsId && itemWsId === wsId) return false;
+        return true;
+      });
+
       (db as any)[targetCollection] = filtered;
       if (targetCollection === 'inboxMessages' || collection === 'inbox') {
         db.inboxMessages = filtered;
