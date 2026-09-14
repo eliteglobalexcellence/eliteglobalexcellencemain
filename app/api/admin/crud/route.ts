@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
           message: `Registration ID: ${newItem.registrationId || ''}\nInstitute: ${newItem.institute || ''} (${newItem.department || ''})\nRole: ${newItem.role || ''} | Level: ${newItem.levelOfStudy || ''}\nCountry: ${newItem.country || ''}\nKeynote Interest: ${newItem.isKeynoteSpeaker || ''}`,
           metadata: newItem,
           read: false,
+          status: 'NEW',
           createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
         };
         if (Array.isArray(db.inboxMessages)) {
