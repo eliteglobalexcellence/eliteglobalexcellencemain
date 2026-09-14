@@ -3955,5 +3955,17 @@
       "status": "VALID",
       "institution": "Elite Global Excellence Academic Council"
     }
+  ],
+  "emailLogs": [
+    {
+      "id": "email-1789376287079",
+      "from": "eliteglobalexcellence@gmail.com",
+      "to": "sajidshah232@gmail.com",
+      "recipientName": "Sajid Shah",
+      "registrationId": "EGEW14-006",
+      "workshopTitle": "Upcoming Workshops, Seminars & Professional Training Programs",
+      "status": "DELIVERED_VIA_SMTP",
+      "sentAt": "2026-09-14T08:58:07.079Z"
+    }
   ]
 }
