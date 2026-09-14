@@ -614,14 +614,37 @@ export async function saveSingleItemToMysql(entity: string, action: 'CREATE' | '
       await p.query(
         `INSERT INTO workshop_registrations (id, workshopId, registrationId, fullName, email, phone, role, institute, department, levelOfStudy, country, isKeynoteSpeaker, attended, certId, registeredAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE workshopId=VALUES(workshopId), registrationId=VALUES(registrationId), fullName=VALUES(fullName), email=VALUES(email), phone=VALUES(phone), role=VALUES(role), institute=VALUES(institute), department=VALUES(department), levelOfStudy=VALUES(levelOfStudy), country=VALUES(country), isKeynoteSpeaker=VALUES(isKeynoteSpeaker), attended=VALUES(attended), certId=VALUES(certId), registeredAt=VALUES(registeredAt)`,
+         ON DUPLICATE KEY UPDATE 
+           workshopId = COALESCE(NULLIF(VALUES(workshopId), ''), workshop_registrations.workshopId),
+           registrationId = COALESCE(NULLIF(VALUES(registrationId), ''), workshop_registrations.registrationId),
+           fullName = COALESCE(NULLIF(VALUES(fullName), ''), workshop_registrations.fullName),
+           email = COALESCE(NULLIF(VALUES(email), ''), workshop_registrations.email),
+           phone = COALESCE(NULLIF(VALUES(phone), ''), workshop_registrations.phone),
+           role = COALESCE(NULLIF(VALUES(role), ''), workshop_registrations.role),
+           institute = COALESCE(NULLIF(VALUES(institute), ''), workshop_registrations.institute),
+           department = COALESCE(NULLIF(VALUES(department), ''), workshop_registrations.department),
+           levelOfStudy = COALESCE(NULLIF(VALUES(levelOfStudy), ''), workshop_registrations.levelOfStudy),
+           country = COALESCE(NULLIF(VALUES(country), ''), workshop_registrations.country),
+           isKeynoteSpeaker = COALESCE(NULLIF(VALUES(isKeynoteSpeaker), ''), workshop_registrations.isKeynoteSpeaker),
+           attended = VALUES(attended),
+           certId = COALESCE(NULLIF(VALUES(certId), ''), workshop_registrations.certId),
+           registeredAt = COALESCE(NULLIF(VALUES(registeredAt), ''), workshop_registrations.registeredAt)`,
         [id, payload.workshopId || '', payload.registrationId || '', payload.fullName || '', payload.email || '', payload.phone || '', payload.role || '', payload.institute || '', payload.department || '', payload.levelOfStudy || '', payload.country || '', payload.isKeynoteSpeaker || 'No', payload.attended ? 1 : 0, payload.certId || '', payload.registeredAt || '']
       );
     } else if (entity === 'workshopAttendances') {
       await p.query(
         `INSERT INTO workshop_attendances (id, workshopId, certId, fullName, email, satisfied, learned, feedback, submittedAt, certIssued)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE workshopId=VALUES(workshopId), certId=VALUES(certId), fullName=VALUES(fullName), email=VALUES(email), satisfied=VALUES(satisfied), learned=VALUES(learned), feedback=VALUES(feedback), submittedAt=VALUES(submittedAt), certIssued=VALUES(certIssued)`,
+         ON DUPLICATE KEY UPDATE 
+           workshopId = COALESCE(NULLIF(VALUES(workshopId), ''), workshop_attendances.workshopId),
+           certId = COALESCE(NULLIF(VALUES(certId), ''), workshop_attendances.certId),
+           fullName = COALESCE(NULLIF(VALUES(fullName), ''), workshop_attendances.fullName),
+           email = COALESCE(NULLIF(VALUES(email), ''), workshop_attendances.email),
+           satisfied = COALESCE(NULLIF(VALUES(satisfied), ''), workshop_attendances.satisfied),
+           learned = COALESCE(NULLIF(VALUES(learned), ''), workshop_attendances.learned),
+           feedback = VALUES(feedback),
+           submittedAt = COALESCE(NULLIF(VALUES(submittedAt), ''), workshop_attendances.submittedAt),
+           certIssued = VALUES(certIssued)`,
         [id, payload.workshopId || '', payload.certId || '', payload.fullName || '', payload.email || '', payload.satisfied || '', payload.learned || '', payload.feedback || '', payload.submittedAt || '', payload.certIssued ? 1 : 0]
       );
     } else if (entity === 'courses') {

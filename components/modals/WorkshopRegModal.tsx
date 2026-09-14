@@ -147,22 +147,23 @@ export const WorkshopRegModal: React.FC<WorkshopRegModalProps> = ({
 
       if (onSuccess) onSuccess();
 
-      // 2. Save registration record to database asynchronously
-      fetch('/api/admin/crud', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'CREATE',
-          entity: 'workshopRegistrations',
-          payload: newRegistration,
-        }),
-      })
-        .then(() => {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('ege_data_updated'));
-          }
-        })
-        .catch((err) => console.warn('Reg save fallback warning:', err));
+      // 2. Save registration record to database
+      try {
+        await fetch('/api/admin/crud', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'CREATE',
+            entity: 'workshopRegistrations',
+            payload: newRegistration,
+          }),
+        });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('ege_data_updated'));
+        }
+      } catch (err) {
+        console.warn('Reg save warning:', err);
+      }
 
       // 2. Send Inbox Copy asynchronously
       fetch('/api/inbox', {

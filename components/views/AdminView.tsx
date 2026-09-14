@@ -467,6 +467,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
         } else if (entity === 'inbox' || entity === 'inboxMessages') {
           data.inboxMessages = [newItem, ...(data.inboxMessages || [])];
           data.inbox = data.inboxMessages;
+        } else if (entity === 'workshopRegistrations') {
+          data.workshopRegistrations = [newItem, ...(data.workshopRegistrations || [])];
+        } else if (entity === 'workshopAttendances') {
+          data.workshopAttendances = [newItem, ...(data.workshopAttendances || [])];
         }
       } else if (action === 'UPDATE') {
         const updateList = (arr?: any[]) =>

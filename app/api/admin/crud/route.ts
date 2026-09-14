@@ -22,16 +22,6 @@ export async function POST(req: NextRequest) {
 
     const db = await getDatabaseAsync();
 
-    // Synchronous sync to MySQL database if configured
-    if (isMysqlConfigured()) {
-      try {
-        await saveSingleItemToMysql(collection, actionUpper, { ...item, id: id || item?.id });
-        invalidateMysqlCache();
-      } catch (err) {
-        console.warn('MySQL single item save warning:', err);
-      }
-    }
-
     // Special singletons: siteContent & contactSettings
     if (collection === 'siteContent') {
       if (action === 'update' || action === 'create') {
@@ -75,22 +65,45 @@ export async function POST(req: NextRequest) {
         db.inbox = list;
       }
       saveDatabase(db);
+
+      if (isMysqlConfigured()) {
+        try {
+          await saveSingleItemToMysql(collection, 'CREATE', newItem);
+          invalidateMysqlCache();
+        } catch (err) {
+          console.warn('MySQL single item create warning:', err);
+        }
+      }
+
       return NextResponse.json({ success: true, data: newItem, all: list });
     }
 
     if (action === 'update') {
       const index = list.findIndex((i: any) => String(i.id) === String(id || item.id));
+      let updatedItem = item;
       if (index === -1) {
         const newItem = { ...item, id: id || Date.now() };
         list.unshift(newItem);
+        updatedItem = newItem;
       } else {
         list[index] = { ...list[index], ...item };
+        updatedItem = list[index];
       }
       if (targetCollection === 'inboxMessages') {
         db.inbox = list;
       }
       saveDatabase(db);
-      return NextResponse.json({ success: true, data: list[index] || item, all: list });
+
+      if (isMysqlConfigured()) {
+        try {
+          await saveSingleItemToMysql(collection, 'UPDATE', updatedItem);
+          invalidateMysqlCache();
+        } catch (err) {
+          console.warn('MySQL single item update warning:', err);
+        }
+      }
+
+      return NextResponse.json({ success: true, data: updatedItem, all: list });
     }
 
     if (action === 'delete') {
@@ -119,6 +132,16 @@ export async function POST(req: NextRequest) {
         db.careers = filtered;
       }
       saveDatabase(db);
+
+      if (isMysqlConfigured()) {
+        try {
+          await saveSingleItemToMysql(collection, 'DELETE', { ...item, id: id || item?.id });
+          invalidateMysqlCache();
+        } catch (err) {
+          console.warn('MySQL single item delete warning:', err);
+        }
+      }
+
       return NextResponse.json({ success: true, all: filtered });
     }
 

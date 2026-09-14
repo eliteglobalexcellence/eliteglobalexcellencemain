@@ -108,21 +108,21 @@ export const WorkshopAttendanceModal: React.FC<WorkshopAttendanceModalProps> = (
         }),
       }).catch((err) => console.warn('Attendance save fallback:', err));
 
-      // 2. Optional: Mark matching registration as attended in database
+      // 2. Mark matching registration as attended in database (preserving all existing details!)
       const matchingReg = (data?.workshopRegistrations || []).find(
         (r) => String(r.email).trim().toLowerCase() === trimmedEmail &&
-               (r.workshopId.toUpperCase() === targetWorkshopId.toUpperCase())
+               (r.workshopId.toUpperCase() === targetWorkshopId.toUpperCase() || r.registrationId.toUpperCase().startsWith(targetWorkshopId.toUpperCase()))
       );
 
       if (matchingReg) {
-        fetch('/api/admin/crud', {
+        await fetch('/api/admin/crud', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'UPDATE',
             entity: 'workshopRegistrations',
             payload: {
-              id: matchingReg.id,
+              ...matchingReg,
               attended: true,
               certId: generatedCertId,
             },
